@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match the Tile</title>
+    <link rel="icon" type="image/png" href="pic2.png">
+</head>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-image: url('bg.png');
+        background-size: cover;
+        font-family: Arial, sans-serif;
+    }
+    .container {
+        width: 60%;
+        min-height: 100vh;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: #4885ff;
+;
+    }
+    .header {
+        width: 100%;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .footer {
+        width: 100%;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+ /*button thingz*/   
+    button {
+        width: 70px;
+        height: 30px;
+        color: white;
+        border-style: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 5px;
+    }
+    button:hover {
+        background-color: #ffffff;
+        color: #4885ff;
+    }
+    .start {
+        background-color: #3810ff;
+    }
+    .reset {
+        background-color: #ff683e;
+    }
+/*the game part*/
+    #game {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        justify-content: center;
+        padding: 10px;
+        perspective: 1000px;
+    }
+    .card {
+        width: 100px;
+        height: 100px;
+        position: relative;
+        cursor: pointer;
+        transform-style: preserve-3d;
+        transition: transform 0.6s;
+    }
+    .card img {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        backface-visibility: hidden;
+        border-radius: 10px;
+    }
+    .card.flipped {
+        transform: rotateY(180deg);
+    }
+    .card-front {
+        transform: rotateY(180deg);
+    }
+    .card-back {
+        z-index: 2;
+    }
+/*win message*/
+.hidden {
+    display: none;
+}
+#win-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    margin: 10px;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+#win-animation {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-bottom: 0 auto 10px;
+    justify-items: center;
+}
+</style>
+
+<body>
+    <div class="container">
+        <div class="header">
+        <h1 style="color: white;">Match the Tile</h1>
+        <button class="start" onclick="startGame()">START</button>
+        <button class="reset" onclick="window.location.reload();">RESET</button>
+        </div>
+
+        <section id="game">
+        </section>
+
+        <div id="win-message" class="hidden">
+            <img src="celebration.gif" id="win-animation" alt="Fireworks!">
+            <h2 style="margin: 10px;">Congrats!</h2>
+            <p style="color:#4885ff; margin: 10px;">You finished in <span id="final-time">0</span> seconds!</p>
+            <button class="start" onclick="window.location.reload()" style="width: 100px;">Play Again</button>
+        </div>
+
+    <div class="footer">
+        <p style="color: white;">Time elapsed: <span id="timer">0</span> seconds</p>
+    </div>
+
+    <script>
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let matchedPairs = 0;
+
+    //card pics
+        const cardFront = ['pic1.png', 'pic2.png', 'pic3.png', 'pic4.png', 'pic5.png', 'pic6.png', 'pic7.png', 'pic8.png'];
+        const cardBack = 'backpic.png';
+        let game = [...cardFront, ...cardFront];
+
+    //shuffle cards
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+                }
+                return array;
+            }
+    
+    //flips cards
+    function flipCard() {
+        if (lockBoard) return;//stops when the board is locked
+        if (this === firstCard) return;//stops if cards are same
+
+        this.classList.toggle('flipped');
+
+        if (!hasFlippedCard) {
+            //first click
+            hasFlippedCard = true;
+            firstCard = this;
+            return;
+        }
+        //second click
+        secondCard = this; 
+        checkForMatch();
+    }
+
+    function checkForMatch() {
+        let isMatch = firstCard.dataset.name === secondCard.dataset.name;
+
+        isMatch ? disableCards() : unflipCards();
+    }
+    function disableCards() {
+    // It's a match! Stop listening for clicks on these cards
+    firstCard.removeEventListener('click', flipCard);
+    secondCard.removeEventListener('click', flipCard);
+
+    matchedPairs++; // Add 1 to our counter
+
+    // Check if the player won
+    if (matchedPairs === cardFront.length) {
+        showWinMessage();
+    }
+
+    resetBoard();
+}
+
+//win message and stuff
+function showWinMessage() {
+    clearInterval(timerInterval); // Stop the clock!
+    
+    const winAnim = document.getElementById('win-animation');
+    const winBox = document.getElementById('win-message');
+    const finalTimeDisplay = document.getElementById('final-time');
+
+    // Refresh the GIF so it starts from frame 1
+    const currentSrc = winAnim.src;
+    winAnim.src = "";
+    winAnim.src = currentSrc;
+    
+    finalTimeDisplay.textContent = seconds; // Set the final time
+    winBox.classList.remove('hidden'); // Show the pop-up
+}
+    function unflipCards() {
+    lockBoard = true; // Lock the board so user can't click more cards
+
+    // Wait 1 second so the user can see the wrong cards before they flip back
+    setTimeout(() => {
+        firstCard.classList.remove('flipped');
+        secondCard.classList.remove('flipped');
+
+        resetBoard();
+    }, 1000);
+    }
+    function resetBoard() {
+    // Reset short-term memory for the next turn
+    [hasFlippedCard, lockBoard] = [false, false];
+    [firstCard, secondCard] = [null, null];
+    }
+
+    //creating the game board
+    function createBoard() {
+    const board = document.getElementById('game');
+    const shuffledCards = shuffle(game); // Using the shuffle from before
+
+    // Clear the board just in case
+    board.innerHTML = '';
+
+    shuffledCards.forEach(imageSrc => {
+    // Create the card container
+    const card = document.createElement('div');
+    card.classList.add('card');
+    card.dataset.name = imageSrc;
+
+    // Add the front and back images
+    card.innerHTML = `
+      <img class="card-front" src="${imageSrc}">
+      <img class="card-back" src="${cardBack}">
+    `;
+
+    card.addEventListener('click', flipCard);
+    
+    // Add the card to the board
+    board.appendChild(card);
+    });
+    }
+    
+    //timer
+    let timerInterval;
+    let seconds = 0;
+    const timerDisplay = document.getElementById('timer');
+
+    function  startGame() {
+        //reset timer
+        clearInterval(timerInterval);
+        seconds = 0;
+        timerDisplay.textContent = seconds;
+        createBoard();//generates the cards
+
+        //star counting
+        timerInterval = setInterval(() => {
+            seconds++;
+            timerDisplay.textContent = seconds;
+        }, 1000);
+    }
+    </script>
+    </div>
+</body>
+</html>
